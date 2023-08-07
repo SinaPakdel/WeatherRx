@@ -34,7 +34,7 @@ import io.reactivex.disposables.Disposable;
 @HiltViewModel
 public class MainViewModel extends AndroidViewModel {
     private String cityName;
-
+// https://github.com/IvayloZankov/ZaniWeather
     private final FusedLocationProviderClient fusedLocationClient;
     private final WeatherRepository weatherRepository;
     public CompositeDisposable compositeDisposable = new CompositeDisposable();
