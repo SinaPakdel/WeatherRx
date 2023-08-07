@@ -1,0 +1,164 @@
+package com.sina.weathersina.ui;
+
+import static com.sina.weathersina.utils.Constants.APP_ID;
+
+import android.Manifest;
+import android.app.Application;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.sina.weathersina.data.WeatherRepository;
+import com.sina.weathersina.model.WeatherResponse;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.inject.Inject;
+
+import dagger.hilt.android.lifecycle.HiltViewModel;
+import io.reactivex.SingleObserver;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+
+@HiltViewModel
+public class MainViewModel extends AndroidViewModel {
+    private String cityName;
+
+    private final FusedLocationProviderClient fusedLocationClient;
+    private final WeatherRepository weatherRepository;
+    public CompositeDisposable compositeDisposable = new CompositeDisposable();
+
+
+    private MutableLiveData<Boolean> loadingMutableLiveData = new MutableLiveData<>();
+
+    public LiveData<Boolean> getLoadingLiveData() {
+        return loadingMutableLiveData;
+    }
+
+
+    public MutableLiveData<Throwable> errorMutableLiveData = new MutableLiveData<>();
+
+    public LiveData<Throwable> getErrorLiveData() {
+        return errorMutableLiveData;
+    }
+
+    private final MutableLiveData<String> mutableLiveDataLocation = new MutableLiveData<>();
+
+    public LiveData<String> getLiveDataLocation() {
+        return mutableLiveDataLocation;
+    }
+
+
+    private final MutableLiveData<Boolean> mutableLiveDataPermissions = new MutableLiveData<>();
+
+    public MutableLiveData<Boolean> getLiveDataRequestPermissions() {
+        return mutableLiveDataPermissions;
+    }
+
+    private final MutableLiveData<WeatherResponse> mutableLiveDataWeatherResponse = new MutableLiveData<>();
+
+    public LiveData<WeatherResponse> getLiveDataWeatherResponse() {
+        return mutableLiveDataWeatherResponse;
+    }
+
+
+    public void setCityName(String cityName) {
+        this.cityName = cityName;
+    }
+
+    public void resetPermissions() {
+        mutableLiveDataPermissions.setValue(false);
+    }
+
+    @Inject
+    public MainViewModel(
+            @NonNull Application application,
+            WeatherRepository weatherRepository
+    ) {
+        super(application);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(getApplication());
+        this.weatherRepository = weatherRepository;
+        getUserLocation();
+    }
+
+    public void getUserLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                getApplication(),
+                Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED) {
+            fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+                Log.e("TAG", "getUserLocation: location" );
+                if (location != null) {
+                    Log.e("TAG", "getUserLocation: "+location.getLatitude()+location.getLongitude());
+                    initWeatherDataRequest(location.getLatitude(), location.getLongitude());
+
+                    Geocoder geocoder = new Geocoder(getApplication());
+                    List<Address> addresses = new ArrayList<>();
+                    try {
+                        addresses = geocoder.getFromLocation(
+                                location.getLatitude(), location.getLongitude(), 10);
+
+                    } catch (IOException e) {
+                        Log.e("TAG", "getUserLocation: IOException "+e.getMessage());
+                        e.printStackTrace();
+                    }
+                    if (addresses.size() > 0) {
+                        Address address = addresses.get(0);
+                        cityName = address.getLocality();
+                        mutableLiveDataLocation.setValue(cityName + ", " + address.getCountryName());
+                    }
+                } else {
+                    Log.e("TAG", "getUserLocation: null");
+                }
+            });
+        } else {
+            Log.e("TAG", "getUserLocation: else");
+            mutableLiveDataPermissions.setValue(true);
+            loadingMutableLiveData.setValue(false);
+        }
+    }
+
+    public void initWeatherDataRequest(double latitude, double longitude) {
+        Log.e("TAG", "initWeatherDataRequest: "+latitude+longitude);
+        loadingMutableLiveData.setValue(true);
+
+        weatherRepository.getWeatherInfo(APP_ID, latitude, longitude).subscribe(new WeatherObserver<WeatherResponse>() {
+            @Override
+            public void onSuccess(WeatherResponse weatherResponse) {
+                mutableLiveDataWeatherResponse.setValue(weatherResponse);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                super.onError(e);
+                errorMutableLiveData.setValue(e);
+            }
+        });
+    }
+
+
+    public abstract class WeatherObserver<T extends WeatherResponse> implements SingleObserver<T> {
+        @Override
+        public void onSubscribe(Disposable d) {
+            compositeDisposable.add(d);
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            errorMutableLiveData.setValue(e);
+            e.printStackTrace();
+        }
+    }
+
+}
