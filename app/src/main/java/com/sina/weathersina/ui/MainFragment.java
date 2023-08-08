@@ -84,4 +84,10 @@ public class MainFragment extends Fragment {
             });
         }
     }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mainViewModel.compositeDisposable.clear();
+    }
 }

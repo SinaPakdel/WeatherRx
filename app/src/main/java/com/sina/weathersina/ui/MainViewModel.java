@@ -23,20 +23,24 @@ import com.sina.weathersina.model.WeatherResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
 
 import javax.inject.Inject;
 
 import dagger.hilt.android.lifecycle.HiltViewModel;
 import io.reactivex.SingleObserver;
-import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
+import io.reactivex.rxjava3.core.Observable;
+import io.reactivex.rxjava3.core.Observer;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.disposables.Disposable;
 
 @HiltViewModel
 public class MainViewModel extends AndroidViewModel {
     private String cityName;
-// https://github.com/IvayloZankov/ZaniWeather
+    // https://github.com/IvayloZankov/ZaniWeather
     private final FusedLocationProviderClient fusedLocationClient;
-    private final WeatherRepository weatherRepository;
+    @Inject
+    WeatherRepository weatherRepository;
     public CompositeDisposable compositeDisposable = new CompositeDisposable();
 
 
@@ -98,9 +102,9 @@ public class MainViewModel extends AndroidViewModel {
                 Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
-                Log.e("TAG", "getUserLocation: location" );
+                Log.e("TAG", "getUserLocation: location");
                 if (location != null) {
-                    Log.e("TAG", "getUserLocation: "+location.getLatitude()+location.getLongitude());
+                    Log.e("TAG", "getUserLocation:-- " + location.getLatitude() + location.getLongitude());
                     initWeatherDataRequest(location.getLatitude(), location.getLongitude());
 
                     Geocoder geocoder = new Geocoder(getApplication());
@@ -110,7 +114,7 @@ public class MainViewModel extends AndroidViewModel {
                                 location.getLatitude(), location.getLongitude(), 10);
 
                     } catch (IOException e) {
-                        Log.e("TAG", "getUserLocation: IOException "+e.getMessage());
+                        Log.e("TAG", "getUserLocation: IOException " + e.getMessage());
                         e.printStackTrace();
                     }
                     if (addresses.size() > 0) {
@@ -130,35 +134,58 @@ public class MainViewModel extends AndroidViewModel {
     }
 
     public void initWeatherDataRequest(double latitude, double longitude) {
-        Log.e("TAG", "initWeatherDataRequest: "+latitude+longitude);
+        Log.e("TAG", "initWeatherDataRequest: " + latitude + longitude);
         loadingMutableLiveData.setValue(true);
 
-        weatherRepository.getWeatherInfo(APP_ID, latitude, longitude).subscribe(new WeatherObserver<WeatherResponse>() {
+        weatherRepository.getWeatherInfo(latitude, longitude).subscribe(new Observer<WeatherResponse>() {
             @Override
-            public void onSuccess(WeatherResponse weatherResponse) {
-                mutableLiveDataWeatherResponse.setValue(weatherResponse);
+            public void onSubscribe(@io.reactivex.rxjava3.annotations.NonNull Disposable d) {
+                compositeDisposable.add(d);
             }
 
             @Override
-            public void onError(Throwable e) {
-                super.onError(e);
-                errorMutableLiveData.setValue(e);
+            public void onNext(@io.reactivex.rxjava3.annotations.NonNull WeatherResponse weatherResponse) {
+                Log.e("TAG", "onNext: " + weatherResponse.getMain().getTemp());
             }
+
+            @Override
+            public void onError(@io.reactivex.rxjava3.annotations.NonNull Throwable e) {
+                Log.e("TAG", "onError: " );
+            }
+
+            @Override
+            public void onComplete() {
+                Log.e("TAG", "onComplete: ");
+            }
+//            @Override
+//            public void onSuccess(WeatherResponse weatherResponse) {
+//                mutableLiveDataWeatherResponse.setValue(weatherResponse);
+//            }
+//
+//            @Override
+//            public void onError(Throwable e) {
+//                super.onError(e);
+//                errorMutableLiveData.setValue(e);
+//            }
         });
     }
 
+//    public Future<Observable<WeatherResponse>> weatherFuture() {
+//        return weatherRepository.weatherFutureCall();
+//    }
 
-    public abstract class WeatherObserver<T extends WeatherResponse> implements SingleObserver<T> {
-        @Override
-        public void onSubscribe(Disposable d) {
-            compositeDisposable.add(d);
-        }
 
-        @Override
-        public void onError(Throwable e) {
-            errorMutableLiveData.setValue(e);
-            e.printStackTrace();
-        }
-    }
+//    public abstract class WeatherObserver<T extends WeatherResponse> implements Observable<T> {
+//        @Override
+//        public void onSubscribe(Disposable d) {
+//            compositeDisposable.add(d);
+//        }
+//
+//        @Override
+//        public void onError(Throwable e) {
+//            errorMutableLiveData.setValue(e);
+//            e.printStackTrace();
+//        }
+//    }
 
 }

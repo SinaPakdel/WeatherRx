@@ -44,7 +44,7 @@ dependencies {
 
 
     implementation "com.google.dagger:hilt-android:2.42"
-    annotationProcessor  "com.google.dagger:hilt-compiler:2.42"
+    annotationProcessor "com.google.dagger:hilt-compiler:2.42"
     androidTestImplementation "com.google.dagger:hilt-android-testing:2.42"
     androidTestAnnotationProcessor "com.google.dagger:hilt-android-compiler:2.42"
 
@@ -54,9 +54,10 @@ dependencies {
     implementation "com.squareup.retrofit2:adapter-rxjava2:2.9.0"
     implementation 'com.squareup.okhttp3:logging-interceptor:4.5.0'
 
-    implementation group: 'io.reactivex.rxjava2', name: 'rxandroid', version: '2.1.1'
-    implementation group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.2.21'
+    implementation "io.reactivex.rxjava3:rxjava:3.0.13"
+    implementation "io.reactivex.rxjava3:rxandroid:3.0.0"
+    implementation "com.github.akarnokd:rxjava3-retrofit-adapter:3.0.0"
 
     implementation 'com.google.android.gms:play-services-location:20.0.0'
-    
+
 }
